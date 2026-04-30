@@ -25,6 +25,8 @@ async function verifyWrongOrders() {
     const confirmedWrongOrders = [];
     let totalWrongDelivered = 0;
 
+    const axios = require('axios');
+
     // Process sequentially or in small batches to avoid OpenAI rate limits
     for (let i = 0; i < flaggedOrders.length; i++) {
         const order = flaggedOrders[i];
@@ -33,43 +35,36 @@ async function verifyWrongOrders() {
         if (!order.lastMessage || order.lastMessage.length < 5) continue;
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-4o-mini", // Fast and very cheap
-                    response_format: { type: "json_object" }, // Forces valid JSON
-                    messages: [
-                        {
-                            role: "system",
-                            content: "You are an assistant that checks if a customer received the wrong item. Return ONLY a JSON object with a single boolean property 'wrongItem'. Set to true ONLY if they explicitly complain about receiving the wrong product. Ignore lost or late packages."
-                        },
-                        {
-                            role: "user",
-                            content: `Message: ${order.lastMessage}`
-                        }
-                    ],
-                    max_tokens: 10, // Force extremely short responses to save tokens
-                    temperature: 0
-                })
+            const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+                model: "gpt-4o-mini",
+                response_format: { type: "json_object" },
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an assistant that checks if a customer received the wrong item. Return ONLY a JSON object with a single boolean property 'wrongItem'. Set to true ONLY if they explicitly complain about receiving the wrong product. Ignore lost or late packages."
+                    },
+                    {
+                        role: "user",
+                        content: `Message: ${order.lastMessage}`
+                    }
+                ],
+                max_tokens: 15,
+                temperature: 0
+            }, {
+                headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+                timeout: 10000
             });
 
-            if (!response.ok) {
-                console.error(`API Error for index ${i}:`, response.statusText);
-                continue;
-            }
-
-            const result = await response.json();
-            const aiContent = JSON.parse(result.choices[0].message.content);
+            const aiContent = response.data.choices[0].message.content;
+            const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
 
             // Format exactly as you requested
+            const isWrong = parsed.wrongItem === true || parsed.wrongItem === "true" || parsed.wrongitem === true || parsed.wrongitem === "true";
+            
             const finalResult = {
                 customerEmail: order.customerEmail,
                 conversationId: order.conversationId,
-                wrongItem: aiContent.wrongItem === true
+                wrongItem: isWrong
             };
 
             // If it is indeed a wrong order, save it and count it

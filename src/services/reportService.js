@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { MongoClient, ObjectId } = require('mongodb');
+const axios = require('axios');
 const logger = require('../utils/logger');
 
 const MONGO_URI_CRM = process.env.mongodb_uri;
@@ -12,6 +13,16 @@ const OPENAI_API_KEY = process.env.openai_api_key;
 
 class ReportService {
     async getDailyReport(db = 'crmdb') {
+        if (db === 'all') {
+            const [crm, flo] = await Promise.allSettled([
+                this.getDailyReport('crmdb'),
+                this.getDailyReport('flodb')
+            ]);
+            return {
+                crmdb: crm.status === 'fulfilled' ? crm.value : null,
+                flodb: flo.status === 'fulfilled' ? flo.value : null
+            };
+        }
         const filePath = path.join(process.cwd(), `daily_report_${db}_output.json`);
         if (!fs.existsSync(filePath)) {
             throw new Error(`Daily report for ${db} not found. Run the report first.`);
@@ -25,6 +36,13 @@ class ReportService {
 
 
     async getWrongOrders(db = 'crmdb') {
+        if (db === 'all') {
+            const [crm, flo] = await Promise.all([
+                this.getWrongOrders('crmdb'),
+                this.getWrongOrders('flodb')
+            ]);
+            return [...crm, ...flo];
+        }
         const filePath = path.join(process.cwd(), `confirmed_wrong_orders_${db}.json`);
         if (!fs.existsSync(filePath)) return [];
         try {
@@ -36,6 +54,13 @@ class ReportService {
 
 
     async getFlaggedOrders(db = 'crmdb') {
+        if (db === 'all') {
+            const [crm, flo] = await Promise.all([
+                this.getFlaggedOrders('crmdb'),
+                this.getFlaggedOrders('flodb')
+            ]);
+            return [...crm, ...flo];
+        }
         const filePath = path.join(process.cwd(), `flagged_wrong_orders_${db}.json`);
         if (!fs.existsSync(filePath)) return [];
         try {
@@ -47,6 +72,22 @@ class ReportService {
 
 
     async runDailyReport(dateArg, dbType = 'crmdb') {
+        if (dbType === 'all') {
+            const [crm, flo] = await Promise.all([
+                this.runDailyReport(dateArg, 'crmdb'),
+                this.runDailyReport(dateArg, 'flodb')
+            ]);
+            return {
+                crmdb: crm,
+                flodb: flo,
+                summary: {
+                    totalDailyTickets: crm.totalDailyTickets + flo.totalDailyTickets,
+                    totalClosedTickets: crm.totalClosedTickets + flo.totalClosedTickets,
+                    totalWrongOrdersDelivered: crm.totalWrongOrdersDelivered + flo.totalWrongOrdersDelivered,
+                    wrongOrdersDetails: [...crm.wrongOrdersDetails, ...flo.wrongOrdersDetails]
+                }
+            };
+        }
         if (!OPENAI_API_KEY) throw new Error("Missing openai_api_key");
 
         const mongoUri = dbType === 'flodb' ? MONGO_URI_FLO : MONGO_URI_CRM;
@@ -81,21 +122,27 @@ class ReportService {
             ]);
 
             const suspiciousKeywords = ["opened the box", "not what i see", "different item", "missing", "instead of", "wrong", "ordered"];
-            const cursor = messagesCollection.find({ createdAt: dateQuery, senderType: "customer" });
+            const keywordRegex = new RegExp(suspiciousKeywords.join('|'), 'i');
+            
+            // Optimization: Filter messages by keywords in the database query
+            const cursor = messagesCollection.find({ 
+                createdAt: dateQuery, 
+                senderType: { $regex: /^customer$/i }, // Case-insensitive customer check
+                $or: [
+                    { text: { $regex: keywordRegex } },
+                    { "emailData.plainTextBody": { $regex: keywordRegex } }
+                ]
+            });
 
             const flaggedConversationIds = new Set();
             const messageMap = new Map();
 
             for await (const msg of cursor) {
                 const originalText = msg.text || (msg.emailData && msg.emailData.plainTextBody) || "";
-                const textToAnalyze = originalText.toLowerCase();
-
-                if (suspiciousKeywords.some(kw => textToAnalyze.includes(kw))) {
-                    if (msg.conversationId) {
-                        const cIdStr = msg.conversationId.toString();
-                        flaggedConversationIds.add(cIdStr);
-                        if (!messageMap.has(cIdStr)) messageMap.set(cIdStr, originalText);
-                    }
+                if (msg.conversationId) {
+                    const cIdStr = msg.conversationId.toString();
+                    flaggedConversationIds.add(cIdStr);
+                    if (!messageMap.has(cIdStr)) messageMap.set(cIdStr, originalText);
                 }
             }
 
@@ -122,7 +169,7 @@ class ReportService {
 
             let totalWrongDelivered = 0;
             const confirmedResults = [];
-            const BATCH_SIZE = 10;
+            const BATCH_SIZE = 20;
 
             for (let i = 0; i < flaggedConversations.length; i += BATCH_SIZE) {
                 const batch = flaggedConversations.slice(i, i + BATCH_SIZE);
@@ -131,29 +178,27 @@ class ReportService {
                     if (!text || text.length < 5) return null;
 
                     try {
-                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-                            body: JSON.stringify({
-                                model: "gpt-4o-mini",
-                                response_format: { type: "json_object" },
-                                messages: [
-                                    { role: "system", content: "You are an assistant that checks if a customer received the wrong item. Return ONLY a JSON object with a single boolean property 'wrongItem'. Set to true ONLY if they explicitly complain about receiving the wrong product. Ignore lost or late packages." },
-                                    { role: "user", content: `Message: ${text}` }
-                                ],
-                                max_tokens: 15,
-                                temperature: 0
-                            })
+                        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+                            model: "gpt-4o-mini",
+                            response_format: { type: "json_object" },
+                            messages: [
+                                { role: "system", content: "You are an assistant that checks if a customer received the wrong item. Return ONLY a JSON object with a single boolean property 'wrongItem'. Set to true ONLY if they explicitly complain about receiving the wrong product. Ignore lost or late packages." },
+                                { role: "user", content: `Message: ${text}` }
+                            ],
+                            max_tokens: 15,
+                            temperature: 0
+                        }, {
+                            headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+                            timeout: 10000 // 10s timeout for OpenAI calls
                         });
 
-                        const result = await response.json();
-                        if (!result.choices || !result.choices[0]) {
-                            logger.warn('OpenAI returned unexpected response', { result });
-                            return null;
-                        }
-                        const aiContent = JSON.parse(result.choices[0].message.content);
+                        const aiContent = response.data.choices[0].message.content;
+                        const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
 
-                        if (aiContent.wrongItem === true || aiContent.wrongitem === true) {
+                        // Robust check for wrongItem (handles "true" string or boolean)
+                        const isWrong = parsed.wrongItem === true || parsed.wrongItem === "true" || parsed.wrongitem === true || parsed.wrongitem === "true";
+
+                        if (isWrong) {
                             return {
                                 customerEmail: conv.customerEmail,
                                 conversationId: conv.conversationId || conv._id.toString(),
