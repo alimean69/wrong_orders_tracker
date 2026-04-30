@@ -88,12 +88,14 @@ class ReportService {
         }
     }
 
-    async runDailyReport(dateArg, dbType = 'crmdb') {
+    async runDailyReport(dateArg, dbType = 'crmdb', onProgress = () => {}) {
         if (dbType === 'all') {
+            onProgress(`Starting combined report for all databases`);
             const [crm, flo] = await Promise.all([
-                this.runDailyReport(dateArg, 'crmdb'),
-                this.runDailyReport(dateArg, 'flodb')
+                this.runDailyReport(dateArg, 'crmdb', (msg) => onProgress(`[crmdb] ${msg}`)),
+                this.runDailyReport(dateArg, 'flodb', (msg) => onProgress(`[flodb] ${msg}`))
             ]);
+            onProgress(`Combined report generation complete`);
             return {
                 crmdb: crm,
                 flodb: flo,
@@ -107,6 +109,7 @@ class ReportService {
         }
         if (!OPENAI_API_KEY) throw new Error("Missing openai_api_key");
 
+        onProgress(`Connecting to ${dbType} database...`);
         const db = await this.getDb(dbType);
         try {
             const conversationsCollection = db.collection('conversations');
@@ -124,15 +127,19 @@ class ReportService {
             }
 
             const dateQuery = { $gte: startDate, $lt: endDate };
+            onProgress(`Querying tickets for date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
             
             const [totalDailyTickets, totalClosedTickets] = await Promise.all([
                 conversationsCollection.countDocuments({ createdAt: dateQuery }),
                 conversationsCollection.countDocuments({ createdAt: dateQuery, status: "closed" })
             ]);
 
+            onProgress(`Found ${totalDailyTickets} total tickets, ${totalClosedTickets} closed tickets.`);
+
             const suspiciousKeywords = ["opened the box", "not what i see", "different item", "missing", "instead of", "wrong", "ordered"];
             const keywordRegex = new RegExp(suspiciousKeywords.join('|'), 'i');
             
+            onProgress(`Scanning messages for suspicious keywords...`);
             const cursor = messagesCollection.find({ 
                 createdAt: dateQuery, 
                 senderType: { $regex: /^customer$/i },
@@ -153,6 +160,8 @@ class ReportService {
                     if (!messageMap.has(cIdStr)) messageMap.set(cIdStr, originalText);
                 }
             }
+
+            onProgress(`Found ${flaggedConversationIds.size} unique conversations with suspicious keywords.`);
 
             const flaggedConversations = [];
             if (flaggedConversationIds.size > 0) {
@@ -179,8 +188,11 @@ class ReportService {
             const confirmedResults = [];
             const BATCH_SIZE = 20;
 
+            onProgress(`Starting AI verification for ${flaggedConversations.length} conversations...`);
             for (let i = 0; i < flaggedConversations.length; i += BATCH_SIZE) {
                 const batch = flaggedConversations.slice(i, i + BATCH_SIZE);
+                onProgress(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(flaggedConversations.length/BATCH_SIZE)}...`);
+                
                 const results = await Promise.all(batch.map(async (conv) => {
                     const text = conv.aiMessageContext;
                     if (!text || text.length < 5) return null;
@@ -227,6 +239,8 @@ class ReportService {
                 });
             }
 
+            onProgress(`AI verification complete. Found ${totalWrongDelivered} confirmed wrong orders.`);
+
             const report = {
                 date: startDate.toDateString(),
                 db: dbType,
@@ -237,11 +251,14 @@ class ReportService {
                 generatedAt: new Date().toISOString()
             };
 
+            onProgress(`Saving results to disk...`);
             fs.writeFileSync(path.join(process.cwd(), `daily_report_${dbType}_output.json`), JSON.stringify(report, null, 2));
             fs.writeFileSync(path.join(process.cwd(), `confirmed_wrong_orders_${dbType}.json`), JSON.stringify(confirmedResults, null, 2));
             
+            onProgress(`Report generation finished successfully.`);
             return report;
         } catch (error) {
+            onProgress(`Error: ${error.message}`);
             logger.error(`Error running daily report for ${dbType}`, error);
             throw error;
         }

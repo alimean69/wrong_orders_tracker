@@ -8,16 +8,33 @@ class ReportController {
     async getDailyReport(req, res, next) {
         try {
             const db = req.params.db || req.query.db || 'crmdb';
-            const jobId = `${db}-latest`;
+            const jobId = req.query.jobId;
             
-            // Check if there is an active job for this DB
-            const activeJob = jobs.get(jobId);
+            // If a specific jobId is provided, return its status and logs
+            if (jobId && jobs.has(jobId)) {
+                const job = jobs.get(jobId);
+                return res.json({
+                    jobId,
+                    status: job.status,
+                    startedAt: job.startedAt,
+                    finishedAt: job.finishedAt,
+                    failedAt: job.failedAt,
+                    error: job.error,
+                    logs: job.logs,
+                    data: job.data
+                });
+            }
+
+            // Fallback for compatibility or checking current active job
+            const latestJobId = `${db}-latest`;
+            const activeJob = jobs.get(latestJobId);
             if (activeJob && activeJob.status === 'processing') {
                 return res.json({ 
                     status: 'processing',
                     message: 'A report is currently being generated in the background.',
                     startedAt: activeJob.startedAt,
-                    db
+                    db,
+                    logs: activeJob.logs
                 });
             }
 
@@ -51,23 +68,41 @@ class ReportController {
                 return res.status(200).json({
                     message: 'Report generation is already in progress.',
                     status: 'processing',
-                    jobId
+                    jobId,
+                    checkStatusAt: `/api/reports/${db}/daily?jobId=${jobId}`
                 });
             }
 
             logger.info('Starting background daily report generation', { date, db });
             
-            // Set job status to processing
-            jobs.set(jobId, { status: 'processing', startedAt: new Date() });
+            // Set job status to processing with an empty logs array
+            const jobState = { 
+                status: 'processing', 
+                startedAt: new Date(),
+                logs: [`Job started at ${new Date().toISOString()}`]
+            };
+            jobs.set(jobId, jobState);
+
+            // Define log function for this job
+            const jobLogger = (msg) => {
+                const timestampedMsg = `[${new Date().toISOString()}] ${msg}`;
+                jobState.logs.push(timestampedMsg);
+            };
 
             // Start processing but do NOT 'await' it to allow immediate response
-            reportService.runDailyReport(date, db)
+            reportService.runDailyReport(date, db, jobLogger)
                 .then(report => {
-                    jobs.set(jobId, { status: 'completed', finishedAt: new Date(), data: report });
+                    jobState.status = 'completed';
+                    jobState.finishedAt = new Date();
+                    jobState.data = report;
+                    jobState.logs.push(`Job completed successfully at ${new Date().toISOString()}`);
                     logger.info(`Background report ${jobId} finished successfully`);
                 })
                 .catch(err => {
-                    jobs.set(jobId, { status: 'failed', error: err.message, failedAt: new Date() });
+                    jobState.status = 'failed';
+                    jobState.error = err.message;
+                    jobState.failedAt = new Date();
+                    jobState.logs.push(`Job failed at ${new Date().toISOString()}: ${err.message}`);
                     logger.error(`Background report ${jobId} failed`, err);
                 });
 
@@ -76,7 +111,7 @@ class ReportController {
                 message: 'Report generation started in the background.',
                 status: 'processing',
                 jobId,
-                checkStatusAt: `/api/reports/${db}/daily`
+                checkStatusAt: `/api/reports/${db}/daily?jobId=${jobId}`
             });
 
         } catch (err) {
