@@ -10,8 +10,28 @@ const MONGO_URI_FLO = process.env.flodb_uri;
 if (!MONGO_URI_CRM) throw new Error('mongodb_uri environment variable is required');
 const OPENAI_API_KEY = process.env.openai_api_key;
 
+// Connection Pool Singleton
+const clients = {
+    crmdb: new MongoClient(MONGO_URI_CRM, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 10000 }),
+    flodb: MONGO_URI_FLO ? new MongoClient(MONGO_URI_FLO, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 10000 }) : null
+};
+
+const connectionState = { crmdb: false, flodb: false };
 
 class ReportService {
+    async getDb(dbType = 'crmdb') {
+        const type = dbType === 'flodb' ? 'flodb' : 'crmdb';
+        const client = clients[type];
+        if (!client) throw new Error(`Database connection for ${type} is not configured in .env`);
+        
+        if (!connectionState[type]) {
+            await client.connect();
+            connectionState[type] = true;
+            logger.info(`Connected to MongoDB: ${type}`);
+        }
+        return client.db(type === 'flodb' ? 'flodb' : 'crmdb');
+    }
+
     async getDailyReport(db = 'crmdb') {
         if (db === 'all') {
             const [crm, flo] = await Promise.allSettled([
@@ -34,7 +54,6 @@ class ReportService {
         }
     }
 
-
     async getWrongOrders(db = 'crmdb') {
         if (db === 'all') {
             const [crm, flo] = await Promise.all([
@@ -52,7 +71,6 @@ class ReportService {
         }
     }
 
-
     async getFlaggedOrders(db = 'crmdb') {
         if (db === 'all') {
             const [crm, flo] = await Promise.all([
@@ -69,7 +87,6 @@ class ReportService {
             throw new Error(`Flagged orders file for ${db} is corrupted or unreadable.`);
         }
     }
-
 
     async runDailyReport(dateArg, dbType = 'crmdb') {
         if (dbType === 'all') {
@@ -90,16 +107,8 @@ class ReportService {
         }
         if (!OPENAI_API_KEY) throw new Error("Missing openai_api_key");
 
-        const mongoUri = dbType === 'flodb' ? MONGO_URI_FLO : MONGO_URI_CRM;
-        if (!mongoUri) throw new Error(`Connection string for ${dbType} is not defined in .env`);
-
-        const client = new MongoClient(mongoUri);
+        const db = await this.getDb(dbType);
         try {
-            await client.connect();
-            // Connect to the specific database name provided in the URI or default to the parameter
-            const dbName = dbType === 'flodb' ? 'flodb' : 'crmdb';
-            const db = client.db(dbName);
-
             const conversationsCollection = db.collection('conversations');
             const messagesCollection = db.collection('messages');
 
@@ -124,10 +133,9 @@ class ReportService {
             const suspiciousKeywords = ["opened the box", "not what i see", "different item", "missing", "instead of", "wrong", "ordered"];
             const keywordRegex = new RegExp(suspiciousKeywords.join('|'), 'i');
             
-            // Optimization: Filter messages by keywords in the database query
             const cursor = messagesCollection.find({ 
                 createdAt: dateQuery, 
-                senderType: { $regex: /^customer$/i }, // Case-insensitive customer check
+                senderType: { $regex: /^customer$/i },
                 $or: [
                     { text: { $regex: keywordRegex } },
                     { "emailData.plainTextBody": { $regex: keywordRegex } }
@@ -189,13 +197,11 @@ class ReportService {
                             temperature: 0
                         }, {
                             headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-                            timeout: 10000 // 10s timeout for OpenAI calls
+                            timeout: 10000
                         });
 
                         const aiContent = response.data.choices[0].message.content;
                         const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
-
-                        // Robust check for wrongItem (handles "true" string or boolean)
                         const isWrong = parsed.wrongItem === true || parsed.wrongItem === "true" || parsed.wrongitem === true || parsed.wrongitem === "true";
 
                         if (isWrong) {
@@ -232,14 +238,12 @@ class ReportService {
             };
 
             fs.writeFileSync(path.join(process.cwd(), `daily_report_${dbType}_output.json`), JSON.stringify(report, null, 2));
-            // Also update the general "latest" collections for this DB
             fs.writeFileSync(path.join(process.cwd(), `confirmed_wrong_orders_${dbType}.json`), JSON.stringify(confirmedResults, null, 2));
             
             return report;
-
-
-        } finally {
-            await client.close();
+        } catch (error) {
+            logger.error(`Error running daily report for ${dbType}`, error);
+            throw error;
         }
     }
 }
