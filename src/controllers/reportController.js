@@ -1,8 +1,26 @@
 const reportService = require('../services/reportService');
 const logger = require('../utils/logger');
 
-// SEC-05: Rate limiting and job tracking for long-running reports
+// SEC-05 & MEM-03: Job tracking with automatic 30-day cleanup
 const jobs = new Map();
+
+// Periodic cleanup: Runs every 24 hours to delete jobs older than 30 days
+setInterval(() => {
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    let deletedCount = 0;
+
+    for (const [jobId, job] of jobs.entries()) {
+        const jobTime = job.finishedAt || job.failedAt || job.startedAt;
+        if (jobTime && new Date(jobTime).getTime() < thirtyDaysAgo) {
+            jobs.delete(jobId);
+            deletedCount++;
+        }
+    }
+    
+    if (deletedCount > 0) {
+        logger.info(`Cleanup: Removed ${deletedCount} old job logs from memory.`);
+    }
+}, 24 * 60 * 60 * 1000); 
 
 class ReportController {
     async getDailyReport(req, res, next) {
@@ -64,13 +82,27 @@ class ReportController {
             }
 
             // Check if job is already running to prevent duplicate work
-            if (jobs.has(jobId) && jobs.get(jobId).status === 'processing') {
-                return res.status(200).json({
-                    message: 'Report generation is already in progress.',
-                    status: 'processing',
-                    jobId,
-                    checkStatusAt: `/api/reports/${db}/daily?jobId=${jobId}`
-                });
+            if (jobs.has(jobId)) {
+                const existingJob = jobs.get(jobId);
+                
+                if (existingJob.status === 'processing') {
+                    return res.status(200).json({
+                        message: 'Report generation is already in progress.',
+                        status: 'processing',
+                        jobId,
+                        checkStatusAt: `/api/reports/${db}/daily?jobId=${jobId}`
+                    });
+                }
+
+                if (existingJob.status === 'completed') {
+                    return res.status(200).json({
+                        message: 'Report for this date has already been generated.',
+                        status: 'completed',
+                        jobId,
+                        data: existingJob.data,
+                        logs: existingJob.logs
+                    });
+                }
             }
 
             logger.info('Starting background daily report generation', { date, db });
