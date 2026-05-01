@@ -68,6 +68,7 @@ class ReportController {
         try {
             const { date } = req.body;
             const { db } = req.params;
+            const force = req.query.force === 'true';
             const jobId = `${db}-${date || 'latest'}`;
 
             // SEC-01: Validate input
@@ -94,13 +95,15 @@ class ReportController {
                     });
                 }
 
-                if (existingJob.status === 'completed') {
+                // If completed but NOT forcing, return cached result
+                if (existingJob.status === 'completed' && !force) {
                     return res.status(200).json({
                         message: 'Report for this date has already been generated.',
                         status: 'completed',
                         jobId,
                         data: existingJob.data,
-                        logs: existingJob.logs
+                        logs: existingJob.logs,
+                        regenerateAt: `/api/reports/${db}/run?force=true`
                     });
                 }
             }
@@ -168,6 +171,31 @@ class ReportController {
             const db = req.params.db || req.query.db || 'crmdb';
             const orders = await reportService.getFlaggedOrders(db);
             res.json({ data: orders });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async getConfig(req, res, next) {
+        try {
+            res.json({
+                mongodb_uri: process.env.mongodb_uri ? '********' + process.env.mongodb_uri.slice(-5) : null,
+                flodb_uri: process.env.flodb_uri ? '********' + process.env.flodb_uri.slice(-5) : null,
+                actual_uris: {
+                    mongodb_uri: process.env.mongodb_uri,
+                    flodb_uri: process.env.flodb_uri
+                }
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async updateConfig(req, res, next) {
+        try {
+            const { mongodb_uri, flodb_uri } = req.body;
+            await reportService.updateConfig({ mongodb_uri, flodb_uri });
+            res.json({ message: 'Configuration updated successfully' });
         } catch (err) {
             next(err);
         }

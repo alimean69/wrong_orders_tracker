@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wrong Order Tracker | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981;
+            --error: #ef4444;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg); 
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 700; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .grid { display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title { font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-size: 0.875rem; margin-bottom: 0.5rem; color: var(--text-muted); }
+        input, select { 
+            width: 100%; 
+            padding: 0.75rem; 
+            background: #0f172a; 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            color: var(--text); 
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        input:focus { outline: none; border-color: var(--primary); }
+
+        button { 
+            width: 100%; 
+            padding: 0.75rem; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        button:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .log-container { 
+            background: #000; 
+            border-radius: 8px; 
+            padding: 1rem; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 0.8rem; 
+            height: 400px; 
+            overflow-y: auto; 
+            border: 1px solid var(--border);
+            color: #e2e8f0;
+            scroll-behavior: smooth;
+        }
+        .log-entry { margin-bottom: 0.25rem; border-left: 2px solid transparent; padding-left: 8px; }
+        .log-time { color: var(--text-muted); margin-right: 0.5rem; font-size: 0.7rem; }
+        
+        /* Log Colors */
+        .log-error { color: #f87171; border-left-color: #ef4444; } /* Red */
+        .log-milestone { color: #c084fc; border-left-color: #a855f7; } /* Purple */
+        .log-info { color: #60a5fa; border-left-color: #3b82f6; } /* Blue */
+        .log-success { color: #4ade80; border-left-color: #22c55e; } /* Green */
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .stat-card { background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        .orders-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.875rem; }
+        .orders-table th { text-align: left; padding: 0.75rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        .orders-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+        .badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .badge-processing { background: #3b82f6; color: white; }
+        .badge-completed { background: #10b981; color: white; }
+        .badge-failed { background: #ef4444; color: white; }
+
+        .config-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .config-modal { width: 500px; max-width: 90%; }
+
+        .tabs { display: flex; gap: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); }
+        .tab { padding: 0.5rem 1rem; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Antigravity Wrong Order Tracker</h1>
+                <p style="color: var(--text-muted); font-size: 0.8rem;">Monitoring crmdb & flowdb across AI verification pipelines</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="showConfig()" style="background: transparent; border: 1px solid var(--border); width: auto; padding: 0.5rem 1rem;">⚙️ Config</button>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Sidebar / Control Panel -->
+            <div class="card">
+                <div class="section-title">🚀 Job Controls</div>
+                
+                <div class="form-group">
+                    <label>Auth Token</label>
+                    <input type="password" id="authToken" placeholder="Enter API Bearer Token" value="">
+                </div>
+
+                <div class="form-group">
+                    <label>Target Database</label>
+                    <select id="dbSelect">
+                        <option value="crmdb">CRM Database (crmdb)</option>
+                        <option value="flowdb">FLO Database (flowdb)</option>
+                        <option value="all">Aggregated (All)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Date</label>
+                    <input type="date" id="dateSelect">
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 1.5rem;">
+                    <button id="runBtn" onclick="runReport()">▶ Run Job</button>
+                    <button id="forceBtn" onclick="runReport(true)" style="background: #4b5563; width: auto;" title="Bypass cache">🔄 Force</button>
+                </div>
+
+                <div class="section-title">📊 Last Run Summary</div>
+                <div id="statusBadge" class="badge" style="display: none; margin-bottom: 1rem;"></div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">Total Tickets</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-flagged">0</div>
+                        <div class="stat-label">Flagged</div>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-confirmed" style="color: var(--error);">0</div>
+                        <div class="stat-label">Confirmed Wrong</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Display -->
+            <div>
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('logs')">Live Logs</div>
+                    <div class="tab" onclick="switchTab('data')">Wrong Orders Data</div>
+                </div>
+
+                <div id="logsTab">
+                    <div class="log-container" id="logWindow">
+                        <div class="log-entry"><span class="log-time">[System]</span> Waiting for job start...</div>
+                    </div>
+                </div>
+
+                <div id="dataTab" style="display: none;">
+                    <div class="card">
+                        <table class="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Conversation ID</th>
+                                    <th>Customer Email</th>
+                                    <th>Status</th>
+                                    <th>Verification</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No data available. Run a job first.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Config Modal -->
+    <div class="config-overlay" id="configOverlay">
+        <div class="card config-modal">
+            <div class="section-title">⚙️ System Configuration</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">Update MongoDB URIs without restarting the server.</p>
+            
+            <div class="form-group">
+                <label>CRM MongoDB URI (mongodb_uri)</label>
+                <input type="text" id="config-crm-uri" placeholder="mongodb://...">
+            </div>
+
+            <div class="form-group">
+                <label>FLO MongoDB URI (flodb_uri)</label>
+                <input type="text" id="config-flo-uri" placeholder="mongodb://...">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveConfig()">Save Changes</button>
+                <button onclick="hideConfig()" style="background: #4b5563;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let pollInterval = null;
+
+        // Initialize date to today
+        document.getElementById('dateSelect').valueAsDate = new Date();
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            
+            if (tab === 'logs') {
+                document.getElementById('logsTab').style.display = 'block';
+                document.getElementById('dataTab').style.display = 'none';
+            } else {
+                document.getElementById('logsTab').style.display = 'none';
+                document.getElementById('dataTab').style.display = 'block';
+            }
+        }
+
+        function addLog(msg, isError = false) {
+            const win = document.getElementById('logWindow');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${isError ? 'log-error' : ''}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            win.appendChild(entry);
+            win.scrollTop = win.scrollHeight;
+        }
+
+        async function api(path, method = 'GET', body = null) {
+            const token = document.getElementById('authToken').value;
+            const options = {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            try {
+                const res = await fetch(path, options);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error?.message || 'API Error');
+                return data;
+            } catch (err) {
+                addLog(`Error: ${err.message}`, true);
+                throw err;
+            }
+        }
+
+        async function runReport(force = false) {
+            const db = document.getElementById('dbSelect').value;
+            const date = document.getElementById('dateSelect').value;
+            const runBtn = document.getElementById('runBtn');
+            const forceBtn = document.getElementById('forceBtn');
+
+            runBtn.disabled = true;
+            forceBtn.disabled = true;
+            
+            document.getElementById('logWindow').innerHTML = '';
+            addLog(`Initiating job for ${db} on ${date}...`);
+            
+            try {
+                const res = await api(`/api/reports/${db}/run${force ? '?force=true' : ''}`, 'POST', { date });
+                
+                if (res.status === 'completed') {
+                    addLog('Returned cached results.');
+                    updateUI(res);
+                    runBtn.disabled = false;
+                    forceBtn.disabled = false;
+                } else {
+                    currentJobId = res.jobId;
+                    addLog(`Job started. ID: ${currentJobId}`);
+                    startPolling(db);
+                }
+            } catch (err) {
+                runBtn.disabled = false;
+                forceBtn.disabled = false;
+            }
+        }
+
+        function startPolling(db) {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await api(`/api/reports/${db}/daily?jobId=${currentJobId}`);
+                    
+                    // Update logs
+                    const win = document.getElementById('logWindow');
+                    win.innerHTML = '';
+                    if (res.logs) {
+                        res.logs.forEach(l => {
+                            const entry = document.createElement('div');
+                            entry.className = 'log-entry';
+                            
+                            // Color logic
+                            const lower = l.toLowerCase();
+                            if (lower.includes('error') || lower.includes('warning') || lower.includes('failed') || lower.includes('limit')) {
+                                entry.classList.add('log-error');
+                            } else if (lower.includes('starting') || lower.includes('connecting') || lower.includes('found')) {
+                                entry.classList.add('log-milestone');
+                            } else if (lower.includes('finished') || lower.includes('successfully') || lower.includes('complete')) {
+                                entry.classList.add('log-success');
+                            } else if (lower.includes('verifying') || lower.includes('processing') || lower.includes('querying')) {
+                                entry.classList.add('log-info');
+                            }
+
+                            // Extract time from [ISO] format if present
+                            const timeMatch = l.match(/\[(.*?)\]/);
+                            if (timeMatch && timeMatch[1].length > 10) {
+                                const timeStr = new Date(timeMatch[1]).toLocaleTimeString();
+                                const cleanMsg = l.replace(timeMatch[0], '').trim();
+                                entry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${cleanMsg}`;
+                            } else {
+                                entry.textContent = l;
+                            }
+                            
+                            win.appendChild(entry);
+                        });
+                        win.scrollTop = win.scrollHeight;
+                    }
+
+                    updateUI(res);
+
+                    if (res.status === 'completed' || res.status === 'failed') {
+                        clearInterval(pollInterval);
+                        document.getElementById('runBtn').disabled = false;
+                        document.getElementById('forceBtn').disabled = false;
+                        addLog(`Job ${res.status}.`);
+                    }
+                } catch (err) {
+                    clearInterval(pollInterval);
+                    document.getElementById('runBtn').disabled = false;
+                    document.getElementById('forceBtn').disabled = false;
+                }
+            }, 2000);
+        }
+
+        function updateUI(res) {
+            const badge = document.getElementById('statusBadge');
+            badge.style.display = 'inline-block';
+            badge.textContent = res.status;
+            badge.className = `badge badge-${res.status}`;
+
+            const data = res.data || {};
+            document.getElementById('stat-total').textContent = data.totalDailyTickets || 0;
+            document.getElementById('stat-flagged').textContent = data.totalFlaggedTickets || 0;
+            document.getElementById('stat-confirmed').textContent = data.totalWrongOrdersDelivered || 0;
+
+            const tableBody = document.getElementById('ordersTableBody');
+            if (data.wrongOrdersDetails && data.wrongOrdersDetails.length > 0) {
+                tableBody.innerHTML = '';
+                data.wrongOrdersDetails.forEach(order => {
+                    const row = `<tr>
+                        <td><code>${order.conversationId}</code></td>
+                        <td>${order.customerEmail || 'N/A'}</td>
+                        <td>${order.status}</td>
+                        <td><span class="badge badge-completed">Confirmed Wrong</span></td>
+                    </tr>`;
+                    tableBody.insertAdjacentHTML('beforeend', row);
+                });
+            } else if (res.status === 'completed') {
+                tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No wrong orders detected in this run.</td></tr>';
+            }
+        }
+
+        async function showConfig() {
+            try {
+                const config = await api('/api/reports/system/config');
+                document.getElementById('config-crm-uri').value = config.actual_uris?.mongodb_uri || '';
+                document.getElementById('config-flo-uri').value = config.actual_uris?.flodb_uri || '';
+                document.getElementById('configOverlay').style.display = 'flex';
+            } catch (err) {}
+        }
+
+        function hideConfig() {
+            document.getElementById('configOverlay').style.display = 'none';
+        }
+
+        async function saveConfig() {
+            const mongodb_uri = document.getElementById('config-crm-uri').value;
+            const flodb_uri = document.getElementById('config-flo-uri').value;
+            
+            try {
+                await api('/api/reports/system/config', 'POST', { mongodb_uri, flodb_uri });
+                alert('Configuration updated successfully!');
+                hideConfig();
+            } catch (err) {
+                alert('Failed to update config: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

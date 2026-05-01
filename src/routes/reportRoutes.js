@@ -15,4 +15,8 @@ router.get('/all/flagged-orders', (req, res, next) => { req.params.db = 'all'; r
 
 
 
+// Config routes
+router.get('/system/config', (req, res, next) => reportController.getConfig(req, res, next));
+router.post('/system/config', (req, res, next) => reportController.updateConfig(req, res, next));
+
 module.exports = router;

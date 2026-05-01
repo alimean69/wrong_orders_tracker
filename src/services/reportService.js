@@ -11,25 +11,65 @@ if (!MONGO_URI_CRM) throw new Error('mongodb_uri environment variable is require
 const OPENAI_API_KEY = process.env.openai_api_key;
 
 // Connection Pool Singleton
-const clients = {
+let clients = {
     crmdb: new MongoClient(MONGO_URI_CRM, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 10000 }),
     flodb: MONGO_URI_FLO ? new MongoClient(MONGO_URI_FLO, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 10000 }) : null
 };
 
-const connectionState = { crmdb: false, flodb: false };
+let connectionState = { crmdb: false, flodb: false };
 
 class ReportService {
+    async updateConfig(newConfig) {
+        const { mongodb_uri, flodb_uri } = newConfig;
+        
+        // Close existing connections
+        await Promise.all([
+            clients.crmdb ? clients.crmdb.close() : Promise.resolve(),
+            clients.flodb ? clients.flodb.close() : Promise.resolve()
+        ]);
+
+        // Update process.env
+        if (mongodb_uri) process.env.mongodb_uri = mongodb_uri;
+        if (flodb_uri) process.env.flodb_uri = flodb_uri;
+
+        // Re-initialize clients
+        clients.crmdb = new MongoClient(process.env.mongodb_uri, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 10000 });
+        clients.flodb = process.env.flodb_uri ? new MongoClient(process.env.flodb_uri, { serverSelectionTimeoutMS: 5000, connectTimeoutMS: 10000 }) : null;
+        
+        connectionState = { crmdb: false, flodb: false };
+        logger.info('Database configurations updated dynamically');
+        
+        // Persist to .env file
+        const envPath = path.join(process.cwd(), '.env');
+        let envContent = '';
+        for (const key in process.env) {
+            if (['mongodb_uri', 'flodb_uri', 'openai_api_key', 'API_AUTH_TOKEN', 'PORT', 'ALLOWED_ORIGINS'].includes(key)) {
+                envContent += `${key}=${process.env[key]}\n`;
+            }
+        }
+        fs.writeFileSync(envPath, envContent);
+    }
+
     async getDb(dbType = 'crmdb') {
-        const type = dbType === 'flodb' ? 'flodb' : 'crmdb';
+        const normalizedType = dbType.toLowerCase();
+        const type = (normalizedType === 'flodb' || normalizedType === 'flowdb') ? 'flodb' : 'crmdb';
+        
         const client = clients[type];
         if (!client) throw new Error(`Database connection for ${type} is not configured in .env`);
         
+        // SEC-02: Check if both URIs are identical which might cause duplicate data
+        if (type === 'crmdb' && MONGO_URI_FLO === MONGO_URI_CRM) {
+            logger.warn('WARNING: mongodb_uri and flodb_uri are identical. Both databases will return the same data.');
+        }
+
         if (!connectionState[type]) {
             await client.connect();
             connectionState[type] = true;
             logger.info(`Connected to MongoDB: ${type}`);
         }
-        return client.db(type === 'flodb' ? 'flodb' : 'crmdb');
+        
+        // Use the database specified in the URI (default behavior)
+        return client.db();
     }
 
     async getDailyReport(db = 'crmdb') {
@@ -102,6 +142,7 @@ class ReportService {
                 summary: {
                     totalDailyTickets: crm.totalDailyTickets + flo.totalDailyTickets,
                     totalClosedTickets: crm.totalClosedTickets + flo.totalClosedTickets,
+                    totalFlaggedTickets: crm.totalFlaggedTickets + flo.totalFlaggedTickets,
                     totalWrongOrdersDelivered: crm.totalWrongOrdersDelivered + flo.totalWrongOrdersDelivered,
                     wrongOrdersDetails: [...crm.wrongOrdersDetails, ...flo.wrongOrdersDetails]
                 }
@@ -161,10 +202,11 @@ class ReportService {
                 }
             }
 
-            onProgress(`Found ${flaggedConversationIds.size} unique conversations with suspicious keywords.`);
+            const totalFlagged = flaggedConversationIds.size;
+            onProgress(`Found ${totalFlagged} unique conversations with suspicious keywords.`);
 
             const flaggedConversations = [];
-            if (flaggedConversationIds.size > 0) {
+            if (totalFlagged > 0) {
                 const idArray = Array.from(flaggedConversationIds);
                 const convs = await conversationsCollection.find({
                     $or: [
@@ -186,57 +228,63 @@ class ReportService {
 
             let totalWrongDelivered = 0;
             const confirmedResults = [];
-            const BATCH_SIZE = 20;
 
             onProgress(`Starting AI verification for ${flaggedConversations.length} conversations...`);
-            for (let i = 0; i < flaggedConversations.length; i += BATCH_SIZE) {
-                const batch = flaggedConversations.slice(i, i + BATCH_SIZE);
-                onProgress(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(flaggedConversations.length/BATCH_SIZE)}...`);
-                
-                const results = await Promise.all(batch.map(async (conv) => {
-                    const text = conv.aiMessageContext;
-                    if (!text || text.length < 5) return null;
+            
+            // Helper function for OpenAI verification with Retry logic
+            const verifyWithRetry = async (conv, retryCount = 0) => {
+                const text = conv.aiMessageContext;
+                if (!text || text.length < 5) return null;
 
-                    try {
-                        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-                            model: "gpt-4o-mini",
-                            response_format: { type: "json_object" },
-                            messages: [
-                                { role: "system", content: "You are an assistant that checks if a customer received the wrong item. Return ONLY a JSON object with a single boolean property 'wrongItem'. Set to true ONLY if they explicitly complain about receiving the wrong product. Ignore lost or late packages." },
-                                { role: "user", content: `Message: ${text}` }
-                            ],
-                            max_tokens: 15,
-                            temperature: 0
-                        }, {
-                            headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
-                            timeout: 10000
-                        });
+                try {
+                    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+                        model: "gpt-4o-mini",
+                        response_format: { type: "json_object" },
+                        messages: [
+                            { role: "system", content: "You are an assistant that checks if a customer received the wrong item. Return ONLY a JSON object with a single boolean property 'wrongItem'. Set to true ONLY if they explicitly complain about receiving the wrong product. Ignore lost or late packages." },
+                            { role: "user", content: `Message: ${text}` }
+                        ],
+                        max_tokens: 15,
+                        temperature: 0
+                    }, {
+                        headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+                        timeout: 10000
+                    });
 
-                        const aiContent = response.data.choices[0].message.content;
-                        const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
-                        const isWrong = parsed.wrongItem === true || parsed.wrongItem === "true" || parsed.wrongitem === true || parsed.wrongitem === "true";
-
-                        if (isWrong) {
-                            return {
-                                customerEmail: conv.customerEmail,
-                                conversationId: conv.conversationId || conv._id.toString(),
-                                status: conv.status,
-                                wrongItem: true
-                            };
-                        }
-                    } catch (e) {
-                        logger.error('OpenAI verification failed for conversation', e, { conversationId: conv._id });
-                        return null;
+                    const aiContent = response.data.choices[0].message.content;
+                    const parsed = typeof aiContent === 'string' ? JSON.parse(aiContent) : aiContent;
+                    return parsed.wrongItem === true || parsed.wrongItem === "true" || parsed.wrongitem === true || parsed.wrongitem === "true";
+                } catch (e) {
+                    if (e.response?.status === 429 && retryCount < 3) {
+                        const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+                        onProgress(`[Rate Limit] Retrying in ${delay/1000}s... (Attempt ${retryCount + 1}/3)`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return verifyWithRetry(conv, retryCount + 1);
                     }
+                    logger.error('OpenAI verification failed', e, { conversationId: conv._id });
                     return null;
-                }));
+                }
+            };
 
-                results.forEach(res => {
-                    if (res) {
-                        totalWrongDelivered++;
-                        confirmedResults.push(res);
-                    }
-                });
+            // Process sequentially to respect low rate limits
+            for (let i = 0; i < flaggedConversations.length; i++) {
+                const conv = flaggedConversations[i];
+                onProgress(`Verifying conversation ${i + 1}/${flaggedConversations.length}...`);
+                
+                const isWrong = await verifyWithRetry(conv);
+                
+                if (isWrong) {
+                    totalWrongDelivered++;
+                    confirmedResults.push({
+                        customerEmail: conv.customerEmail,
+                        conversationId: conv.conversationId || conv._id.toString(),
+                        status: conv.status,
+                        wrongItem: true
+                    });
+                }
+
+                // Small rest between messages to stay under RPM (Requests Per Minute)
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
             onProgress(`AI verification complete. Found ${totalWrongDelivered} confirmed wrong orders.`);
@@ -246,6 +294,7 @@ class ReportService {
                 db: dbType,
                 totalDailyTickets,
                 totalClosedTickets,
+                totalFlaggedTickets: totalFlagged,
                 totalWrongOrdersDelivered: totalWrongDelivered,
                 wrongOrdersDetails: confirmedResults,
                 generatedAt: new Date().toISOString()
