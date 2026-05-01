@@ -1,0 +1,599 @@
+{
+  "date": "Fri May 01 2026",
+  "db": "crmdb",
+  "totalDailyTickets": 406,
+  "totalClosedTickets": 6,
+  "totalFlaggedTickets": 346,
+  "totalWrongOrdersDelivered": 98,
+  "wrongOrdersDetails": [
+    {
+      "customerEmail": "akilahalleyne4@gmail.com",
+      "conversationId": "6973b67340fa4e303d646ecc",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "dedwards@steel-point.com",
+      "conversationId": "698b80430084eb6677ff2632",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "csizer0131@gmail.com",
+      "conversationId": "699e3c7a3ac4cabd67e7235f",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "bkincaid5148@cox.net",
+      "conversationId": "69a81965c77fefab9718ef3d",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "wendydaughtrey@gmail.com",
+      "conversationId": "69b331320e50d7f1a86d48a2",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "althorae@gmail.com",
+      "conversationId": "69b55ee5f1c854ed60a5b4fd",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "kjo127@yahoo.com",
+      "conversationId": "69b5efbd5b7b2e1604a6c445",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "marielagrimaldo@gmail.com",
+      "conversationId": "69b9d10ad1d9027d1043c62e",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "stles3504@gmail.com",
+      "conversationId": "69c186793132a032994c54f6",
+      "status": "closed",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ayani1029@gmail.com",
+      "conversationId": "69c3017467c71d3eea55943d",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "linette7@gmail.com",
+      "conversationId": "69c5897f033354445a32467f",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mort0802@gmail.com",
+      "conversationId": "69c80770aa5c31e34e0d8e87",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jolin@eliteironps.com",
+      "conversationId": "69c981bdeec121c7138008e6",
+      "status": "closed",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ampetrosino65@gmail.com",
+      "conversationId": "69cac4f42e943ab83c8983ea",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "erica.wilsontraxler@gmail.com",
+      "conversationId": "69cc6017c79161e399cd7f6a",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "pfullen.rn@comcast.net",
+      "conversationId": "69cda8a16e5df6aaa2dba08d",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "psaady@verizon.net",
+      "conversationId": "69cdafb500d33c5a5ed309d2",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "aimeewestcott4@gmail.com",
+      "conversationId": "69cdf9cbeb2e45311d046eb8",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jdm032@yahoo.com",
+      "conversationId": "69d3f6c62607d516cc8e9d09",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "karlynresneck@gmail.com",
+      "conversationId": "69d405c72607d516cc8ff71b",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "whisperpur@gmail.com",
+      "conversationId": "69d516d121600dd8f8647778",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jkinstle@icloud.com",
+      "conversationId": "69d5570abe9ee094ccba2860",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "imahstarmakeahwish@gmail.com",
+      "conversationId": "69d5b4cb713cdbc5ebfd97d7",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jrberinsky@gmail.com",
+      "conversationId": "69d69862fda713ad258ae2c0",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "cgc1106@yahoo.com",
+      "conversationId": "69d6ad77fda713ad258cd859",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "rparadis1979@gmail.com",
+      "conversationId": "69d6f74a8db47564ad9956c2",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mulekat@charter.net",
+      "conversationId": "69d851b37587cd675babc279",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "fearfactor11@yahoo.com",
+      "conversationId": "69d8f0d86c5fea4773994671",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "crobertsnwosu@msn.com",
+      "conversationId": "69d96860c71bad4056b0acbc",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "lindalur8@gmail.com",
+      "conversationId": "69d97c4943c69e3ad238c415",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "martyeedgar@gmail.com",
+      "conversationId": "69d99f5543c69e3ad23a340e",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "monique.imbeault@gmail.com",
+      "conversationId": "69da589b07dfdcb02828ee27",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mollybriseno@gmail.com",
+      "conversationId": "69dad3e207dfdcb0282e794b",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "lustoyer@me.com",
+      "conversationId": "69dad7e1c71bad4056bb1b54",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "lepoulets@yahoo.com",
+      "conversationId": "69dcfdf7c71bad4056c639e5",
+      "status": "closed",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mimi1120@gmail.com",
+      "conversationId": "69dd0bcc9bf4c444d98f3d1a",
+      "status": "closed",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "energizerxman@hotmail.com",
+      "conversationId": "69dd3d7a244132a076271e79",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "rebbarr69@gmail.com",
+      "conversationId": "69de8e84244132a076352f17",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "karl_heinz52@icloud.com",
+      "conversationId": "69df4f25833b75f4c2993cc3",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ssimon50@yahoo.com",
+      "conversationId": "69dfbe10d263f8d08f00640b",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "sabrina.areas4@gmail.com",
+      "conversationId": "69e0f5f9530aae9244e6948b",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "sharonbyrd704@gmail.com",
+      "conversationId": "69e0ff8068ee1888e48d7e54",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ryan81sh@msn.com",
+      "conversationId": "69e142d17cbc8b2ca27272cc",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "paulmgreer@gmail.com",
+      "conversationId": "69e145c97cbc8b2ca272ecdc",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mkewfe@gmail.com",
+      "conversationId": "69e149d568ee1888e4932bd0",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "adeniyiodubeko@gmail.com",
+      "conversationId": "69e1564bbd22726dba19e43a",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "shilpatekkam@gmail.com",
+      "conversationId": "69e22c0bbd22726dba1d63bc",
+      "status": "closed",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ehackenberg@viridiantherapeutics.com",
+      "conversationId": "69e26330bd22726dba20b860",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "missy.wright05@gmail.com",
+      "conversationId": "69e2f21c5f946b83341144e8",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "deceptacon16@gmail.com",
+      "conversationId": "69e535f9bd22726dba34964d",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "earvinshade@gmail.com",
+      "conversationId": "69e62f504403b986b6703180",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "crwalker64@hotmail.com",
+      "conversationId": "69e691a42f1c7e12c8756794",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "conversations+677112276@mg.postscriptapp.com",
+      "conversationId": "69e6c2f7f97852e00863b942",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "theophilusokosun@ymail.com",
+      "conversationId": "69e7789cd0f5e37b8261fe90",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "phoenixrising2027@gmail.com",
+      "conversationId": "69e7e96fd0f5e37b826a8353",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "crazee4gsandgh@sbcglobal.net",
+      "conversationId": "69e80094f97852e0087045ee",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mei_da52@me.com",
+      "conversationId": "69e9186830a3a3c89d8e9c04",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "melissagn1@gmail.com",
+      "conversationId": "69e99c932cf92ee8ae6bf4fc",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "rachaelserra@live.com.au",
+      "conversationId": "69e9e811bf96bf25df57117c",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "bvannest@comcast.net",
+      "conversationId": "69ea5b23b4209352905b53a4",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "deirdredavis9@gmail.com",
+      "conversationId": "69eaa70ea77f7c71a4e49c31",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "lgbnana@gmail.com",
+      "conversationId": "69eaacb2b420935290603ee5",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "angielee99@icloud.com",
+      "conversationId": "69eb3e76b420935290623a7a",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "veronica.ault@gmail.com",
+      "conversationId": "69eb7c1d054ecb582cf75e55",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "robin.ringer1@gmail.com",
+      "conversationId": "69ecb1026fcc816be600cb0c",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jmccrite@gmail.com",
+      "conversationId": "69ed0a4fa77f7c71a4f553c2",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "robtkruger@hotmail.com",
+      "conversationId": "69ed3177b42093529071e265",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jmartinoaz@gmail.com",
+      "conversationId": "69ee6da1a77f7c71a4fbd51d",
+      "status": "closed",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "lan.pham1@gmail.com",
+      "conversationId": "69eed17d8a42dce99dd57853",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "helena0016@gmail.com",
+      "conversationId": "69ef5742054ecb582c0da847",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "edfbdc99@gmail.com",
+      "conversationId": "69efb857e4cb77fa8ef61c22",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "justin.walter@gmail.com",
+      "conversationId": "69efec209b66cc1901f1289a",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mblmylina1963@gmail.com",
+      "conversationId": "69f0ad270d336b999cc36af1",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "jenfranklin13@gmail.com",
+      "conversationId": "69f0f2280d336b999cc97477",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "susumac23@gmail.com",
+      "conversationId": "69f0f4bc9b66cc1901f9715e",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "tonipummel@comcast.net",
+      "conversationId": "69f122a45ce195902610c2c5",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "neil.vallestero@gmail.com",
+      "conversationId": "69f1236ff9c649ac5acfd7f9",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "adrian.mckinnon@yahoo.com",
+      "conversationId": "69f151c9eca5368bf6545ed0",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "frekkls11@yahoo.com",
+      "conversationId": "69f155c4d41fed51e0a8a38a",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "joycelender@gmail.com",
+      "conversationId": "69f159fed41fed51e0a8d083",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "klroundtree@hotmail.com",
+      "conversationId": "69f280a10dd2d923dee3a6dd",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "terrial1180@aol.com",
+      "conversationId": "69f291206665bf48b200aa73",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ann_cusack@yahoo.com",
+      "conversationId": "69f2b2840dd2d923dee557ab",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "farley3160@gmail.com",
+      "conversationId": "69f349b30dd2d923dee6ea3e",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "mandyroeper@gmail.com",
+      "conversationId": "69f389ac0dd2d923deeb3085",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "susanadam28@aol.com",
+      "conversationId": "69f3b883ac09b8843f71033c",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "seclipse10@gmail.com",
+      "conversationId": "69f3dfb2334a25122bdbe9e6",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "rtcbascomb@aol.com",
+      "conversationId": "69f3ec947ba3d52d9f1f823d",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "tgribben624@msn.com",
+      "conversationId": "69f40579334a25122bdd7369",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "vickie.poore@gmail.com",
+      "conversationId": "69f40c373055c72bd94e091e",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "rouster@brighthouse.com",
+      "conversationId": "69f4142e7ba3d52d9f20b7b1",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "ethnodoxologist@gmail.com",
+      "conversationId": "69f427677ba3d52d9f20f334",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "camaro_randi@hotmail.com",
+      "conversationId": "69f429fb334a25122bde29e2",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "frederickgilliamii@yahoo.com",
+      "conversationId": "69f490e17ba3d52d9f2191d7",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "karis_crowder@yahoo.com",
+      "conversationId": "69f49c1f7ba3d52d9f21bda8",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "debbie@newgenerationag.com",
+      "conversationId": "69f4a328334a25122bdf1ff6",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "evalamb28@gmail.com",
+      "conversationId": "69f4b551ac09b8843f774431",
+      "status": "active",
+      "wrongItem": true
+    },
+    {
+      "customerEmail": "heatherkeath@gmail.com",
+      "conversationId": "69f4be967ba3d52d9f23a5d0",
+      "status": "active",
+      "wrongItem": true
+    }
+  ],
+  "generatedAt": "2026-05-01T16:00:53.018Z"
+}

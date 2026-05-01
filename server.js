@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const reportRoutes = require('./src/routes/reportRoutes');
+const opsRoutes = require('./src/routes/opsRoutes');
 const logger = require('./src/utils/logger');
 const authMiddleware = require('./src/middleware/authMiddleware');
 
@@ -53,6 +54,7 @@ app.get('/ready', async (req, res) => {
 // API Routes - Protected by authMiddleware
 app.use('/api', authMiddleware);
 app.use('/api/reports', reportRoutes);
+app.use('/api/ops', opsRoutes);
 
 
 // 404 handler

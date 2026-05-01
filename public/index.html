@@ -169,9 +169,12 @@
                     <input type="date" id="dateSelect">
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-bottom: 1.5rem;">
-                    <button id="runBtn" onclick="runReport()">▶ Run Job</button>
-                    <button id="forceBtn" onclick="runReport(true)" style="background: #4b5563; width: auto;" title="Bypass cache">🔄 Force</button>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem;">
+                    <div style="display: flex; gap: 10px;">
+                        <button id="runBtn" onclick="runReport()" style="flex: 1;">▶ Run Wrong Orders</button>
+                        <button id="forceBtn" onclick="runReport(true)" style="background: #4b5563; width: auto;" title="Bypass cache">🔄 Force</button>
+                    </div>
+                    <button id="opsBtn" onclick="runOpsReport()" style="background: var(--accent);">📊 Run Operations Metrics</button>
                 </div>
 
                 <div class="section-title">📊 Last Run Summary</div>
@@ -200,6 +203,7 @@
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab('logs')">Live Logs</div>
                     <div class="tab" onclick="switchTab('data')">Wrong Orders Data</div>
+                    <div class="tab" onclick="switchTab('ops')">Operations Metrics</div>
                 </div>
 
                 <div id="logsTab">
@@ -210,6 +214,7 @@
 
                 <div id="dataTab" style="display: none;">
                     <div class="card">
+                        <div class="section-title">🛑 Confirmed Wrong Orders</div>
                         <table class="orders-table">
                             <thead>
                                 <tr>
@@ -221,6 +226,33 @@
                             </thead>
                             <tbody id="ordersTableBody">
                                 <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No data available. Run a job first.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="opsTab" style="display: none;">
+                    <div class="card">
+                        <div class="section-title">📊 Fulfillment & Shipping Metrics (7-Day Window)</div>
+                        <div id="opsStatusMessage" style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-muted);"></div>
+                        
+                        <div class="stats-grid" id="opsStatsGrid" style="margin-bottom: 2rem;">
+                            <!-- Dynamically populated -->
+                        </div>
+
+                        <table class="orders-table" id="opsTable">
+                            <thead>
+                                <tr>
+                                    <th>Brand</th>
+                                    <th>Orders</th>
+                                    <th>UPS Delivered</th>
+                                    <th>Avg Fulfillment (h)</th>
+                                    <th>Avg Ship Cost ($)</th>
+                                    <th>Avg Transit (h)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="opsTableBody">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No operations data available.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -263,13 +295,9 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
             
-            if (tab === 'logs') {
-                document.getElementById('logsTab').style.display = 'block';
-                document.getElementById('dataTab').style.display = 'none';
-            } else {
-                document.getElementById('logsTab').style.display = 'none';
-                document.getElementById('dataTab').style.display = 'block';
-            }
+            document.getElementById('logsTab').style.display = tab === 'logs' ? 'block' : 'none';
+            document.getElementById('dataTab').style.display = tab === 'data' ? 'block' : 'none';
+            document.getElementById('opsTab').style.display = tab === 'ops' ? 'block' : 'none';
         }
 
         function addLog(msg, isError = false) {
@@ -443,6 +471,111 @@
                 hideConfig();
             } catch (err) {
                 alert('Failed to update config: ' + err.message);
+            }
+        }
+
+        async function runOpsReport() {
+            const date = document.getElementById('dateSelect').value;
+            const opsBtn = document.getElementById('opsBtn');
+            const authToken = document.getElementById('authToken').value;
+            
+            opsBtn.disabled = true;
+            switchTab('logs'); // Switch to logs to see live activity
+            document.getElementById('logWindow').innerHTML = '';
+            addLog(`Starting operations metrics report for ${date}...`);
+            
+            // SSE for live logs
+            const eventSource = new EventSource(`/api/ops/stream?date=${date}&token=${authToken}`);
+            
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.status === 'logging' || data.status === 'starting') {
+                    addLog(data.message);
+                } else if (data.status === 'running') {
+                    // Update ops tab progress in background
+                    document.getElementById('opsStatusMessage').textContent = `Progress: ${data.progress}% (${data.processed}/${data.total})`;
+                } else if (data.status === 'completed') {
+                    addLog('Operations report completed successfully!', false);
+                    updateOpsUI(data.result);
+                    eventSource.close();
+                    opsBtn.disabled = false;
+                    switchTab('ops'); // Show results when done
+                } else if (data.status === 'failed') {
+                    addLog(`Error: ${data.error}`, true);
+                    eventSource.close();
+                    opsBtn.disabled = false;
+                }
+            };
+
+            eventSource.onerror = (err) => {
+                addLog('SSE Connection closed or failed.', true);
+                eventSource.close();
+                opsBtn.disabled = false;
+            };
+        }
+
+        let opsPollInterval = null;
+        function startOpsPolling(date) {
+            if (opsPollInterval) clearInterval(opsPollInterval);
+            opsPollInterval = setInterval(async () => {
+                try {
+                    const res = await api(`/api/ops?date=${date}`);
+                    if (res.status === 'background_process_is_running') {
+                        document.getElementById('opsStatusMessage').textContent = `Progress: ${res.progress} (${res.processed}/${res.total} tracking numbers fetched)`;
+                    } else if (res.targetDay) { // Completed
+                        clearInterval(opsPollInterval);
+                        updateOpsUI(res);
+                        document.getElementById('opsBtn').disabled = false;
+                    }
+                } catch (err) {
+                    clearInterval(opsPollInterval);
+                    document.getElementById('opsBtn').disabled = false;
+                }
+            }, 5000);
+        }
+
+        function updateOpsUI(res) {
+            const statusMsg = document.getElementById('opsStatusMessage');
+            statusMsg.textContent = `Report for ${res.targetDay} (Window: ${res.windowStart} to ${res.windowEnd})`;
+            
+            const tableBody = document.getElementById('opsTableBody');
+            tableBody.innerHTML = '';
+            
+            if (res.brands && res.brands.length > 0) {
+                res.brands.forEach(brand => {
+                    const row = `<tr>
+                        <td><strong>${brand.brandName}</strong></td>
+                        <td>${brand.ordersCount}</td>
+                        <td>${brand.ordersWithUpsDelivery}</td>
+                        <td>${brand.avgTimeToFulfillmentHours}h</td>
+                        <td>$${brand.avgShippingCostPerOrder}</td>
+                        <td>${brand.avgShipToDeliveryHours ? brand.avgShipToDeliveryHours + 'h' : 'N/A'}</td>
+                    </tr>`;
+                    tableBody.insertAdjacentHTML('beforeend', row);
+                });
+
+                // Update summary stats
+                const statsGrid = document.getElementById('opsStatsGrid');
+                const totalOrders = res.brands.reduce((sum, b) => sum + b.ordersCount, 0);
+                const avgFulfillment = (res.brands.reduce((sum, b) => sum + b.avgTimeToFulfillmentHours, 0) / res.brands.length).toFixed(2);
+                
+                statsGrid.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${totalOrders}</div>
+                        <div class="stat-label">Total Shipments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${avgFulfillment}h</div>
+                        <div class="stat-label">Avg Fulfillment</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">$${(res.brands.reduce((sum, b) => sum + b.avgShippingCostPerOrder, 0) / res.brands.length).toFixed(2)}</div>
+                        <div class="stat-label">Avg Ship Cost</div>
+                    </div>
+                `;
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No brands found in results.</td></tr>';
             }
         }
     </script>

@@ -5,12 +5,22 @@ const logger = require('../utils/logger');
  * Checks for Authorization: Bearer <token> in headers.
  */
 const authMiddleware = (req, res, next) => {
+    let token = null;
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        logger.warn(`Unauthorized access attempt: No Bearer token provided`, { 
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+    } else if (req.query.token) {
+        token = req.query.token;
+    }
+
+    if (!token) {
+        logger.warn(`Unauthorized access attempt: No token found`, { 
             url: req.url, 
-            ip: req.ip 
+            ip: req.ip,
+            hasAuthHeader: !!authHeader,
+            hasQueryToken: !!req.query.token,
+            queryParams: Object.keys(req.query)
         });
         return res.status(401).json({
             error: {
@@ -21,7 +31,6 @@ const authMiddleware = (req, res, next) => {
         });
     }
 
-    const token = authHeader.split(' ')[1];
     const validToken = process.env.API_AUTH_TOKEN;
 
     if (!validToken) {
