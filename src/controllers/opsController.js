@@ -33,10 +33,16 @@ class OpsController {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable proxy buffering (Nginx)
 
         const sendEvent = (data) => {
             res.write(`data: ${JSON.stringify(data)}\n\n`);
         };
+
+        // Heartbeat to keep connection alive
+        const heartbeat = setInterval(() => {
+            res.write(':keepalive\n\n');
+        }, 15000);
 
         const onLog = (message) => sendEvent({ status: 'logging', message });
         const onProgress = (data) => sendEvent({ 
@@ -55,28 +61,35 @@ class OpsController {
         opsService.jobEvents.on(`completed:${date}`, onCompleted);
 
         req.on('close', () => {
+            clearInterval(heartbeat);
             opsService.jobEvents.off(`log:${date}`, onLog);
             opsService.jobEvents.off(`progress:${date}`, onProgress);
             opsService.jobEvents.off(`completed:${date}`, onCompleted);
         });
 
         try {
-            // Trigger or get the report status (this starts the background job if needed)
+            // Trigger or get the report status
             const reportStatus = await opsService.getOpsReport(date);
             
             if (reportStatus.targetDay) {
-                // Already completed, send result immediately
+                // Already completed
                 sendEvent({ status: 'completed', progress: 100, result: reportStatus });
                 res.end();
+            } else if (reportStatus.status === 'background_process_is_running') {
+                // Already running, send current progress and a message
+                sendEvent({ 
+                    status: 'running', 
+                    message: "Joining existing background job...",
+                    progress: parseInt(reportStatus.progress),
+                    processed: reportStatus.processed,
+                    total: reportStatus.total
+                });
             } else {
-                // Job is running or just started, SSE will receive events from EventEmitter
+                // Job just started
                 sendEvent({ status: 'starting', message: reportStatus.message || 'Connecting to database...' });
-                
-                // If it's already running, we might have missed the initial logs, 
-                // but we'll get everything from now on.
             }
         } catch (error) {
-            logger.error(`SSE Ops stream failed for ${date}`, error);
+            logger.error(`SSE Ops stream failed for ${date}`, { error: error.message });
             sendEvent({ status: 'failed', error: error.message });
             res.end();
         }

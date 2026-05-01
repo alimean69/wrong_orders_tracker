@@ -195,18 +195,7 @@ async function runOpsLogic(targetDay, progressCallback, logCallback) {
 }
 
 async function getOpsReport(targetDay) {
-    await ensureReportsDir();
-    const reportPath = path.join(REPORTS_DIR, `${targetDay}.json`);
-
-    // 1. Check if report exists
-    try {
-        const data = await fs.readFile(reportPath, 'utf8');
-        return JSON.parse(data);
-    } catch (err) {
-        // Continue if not found
-    }
-
-    // 2. Check if job is running
+    // 1. Check memory cache (running or completed)
     if (activeJobs.has(targetDay)) {
         const job = activeJobs.get(targetDay);
         if (job.status === 'running') {
@@ -217,26 +206,41 @@ async function getOpsReport(targetDay) {
                 total: job.total,
                 message: "The report is currently being generated in the background."
             };
-        } else if (job.status === 'failed') {
-            activeJobs.delete(targetDay);
         } else if (job.status === 'completed') {
             return job.result;
+        } else if (job.status === 'failed') {
+            // If it failed, we might want to allow a retry
+            activeJobs.delete(targetDay);
         }
     }
 
-    // 3. Start job
+    // 2. Check if report exists on disk
+    const reportPath = path.join(REPORTS_DIR, `${targetDay}.json`);
+    try {
+        const data = await fs.readFile(reportPath, 'utf8');
+        const result = JSON.parse(data);
+        // Cache result in memory for faster subsequent access
+        activeJobs.set(targetDay, { status: 'completed', result });
+        return result;
+    } catch (err) {
+        // Continue to start job if not found
+    }
+
+    // 3. Start job - Set in activeJobs IMMEDIATELY to prevent race conditions
     const job = {
         status: 'running',
         progress: 0,
         processed: 0,
         total: 0,
-        targetDay
+        targetDay,
+        startTime: new Date()
     };
     activeJobs.set(targetDay, job);
 
     // Run in background
     (async () => {
         try {
+            await ensureReportsDir();
             const result = await runOpsLogic(targetDay, (done, total) => {
                 job.progress = Math.round((done / total) * 100);
                 job.processed = done;
@@ -248,9 +252,10 @@ async function getOpsReport(targetDay) {
             
             await fs.writeFile(reportPath, JSON.stringify(result, null, 2));
         } catch (error) {
-            logger.error(`Ops job failed for ${targetDay}`, error);
+            logger.error(`Ops job failed for ${targetDay}`, { error: error.message, stack: error.stack });
             job.status = 'failed';
             job.error = error.message;
+            jobEvents.emit(`log:${targetDay}`, `Error: ${error.message}`);
         }
     })();
 
