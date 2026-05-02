@@ -477,42 +477,19 @@
         async function runOpsReport() {
             const date = document.getElementById('dateSelect').value;
             const opsBtn = document.getElementById('opsBtn');
-            const authToken = document.getElementById('authToken').value;
             
             opsBtn.disabled = true;
-            switchTab('logs'); // Switch to logs to see live activity
+            switchTab('logs'); // Switch to logs to see activity
             document.getElementById('logWindow').innerHTML = '';
-            addLog(`Starting operations metrics report for ${date}...`);
+            addLog(`Initiating operations metrics report for ${date}...`);
             
-            // SSE for live logs
-            const eventSource = new EventSource(`/api/ops/stream?date=${date}&token=${authToken}`);
-            
-            eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                
-                if (data.status === 'logging' || data.status === 'starting') {
-                    addLog(data.message);
-                } else if (data.status === 'running') {
-                    // Update ops tab progress in background
-                    document.getElementById('opsStatusMessage').textContent = `Progress: ${data.progress}% (${data.processed}/${data.total})`;
-                } else if (data.status === 'completed') {
-                    addLog('Operations report completed successfully!', false);
-                    updateOpsUI(data.result);
-                    eventSource.close();
-                    opsBtn.disabled = false;
-                    switchTab('ops'); // Show results when done
-                } else if (data.status === 'failed') {
-                    addLog(`Error: ${data.error}`, true);
-                    eventSource.close();
-                    opsBtn.disabled = false;
-                }
-            };
-
-            eventSource.onerror = (err) => {
-                addLog('SSE Connection closed or failed.', true);
-                eventSource.close();
+            try {
+                const res = await api(`/api/ops/run`, 'POST', { date });
+                addLog('Background job started successfully.');
+                startOpsPolling(date);
+            } catch (err) {
                 opsBtn.disabled = false;
-            };
+            }
         }
 
         let opsPollInterval = null;
@@ -521,18 +498,38 @@
             opsPollInterval = setInterval(async () => {
                 try {
                     const res = await api(`/api/ops?date=${date}`);
-                    if (res.status === 'background_process_is_running') {
-                        document.getElementById('opsStatusMessage').textContent = `Progress: ${res.progress} (${res.processed}/${res.total} tracking numbers fetched)`;
-                    } else if (res.targetDay) { // Completed
+                    
+                    // Update logs window if available in response
+                    if (res.data && res.data.logs) {
+                        const win = document.getElementById('logWindow');
+                        win.innerHTML = '';
+                        res.data.logs.forEach(l => {
+                            const entry = document.createElement('div');
+                            entry.className = 'log-entry';
+                            entry.textContent = l;
+                            win.appendChild(entry);
+                        });
+                        win.scrollTop = win.scrollHeight;
+                    }
+
+                    if (res.status === 'processing') {
+                        document.getElementById('opsStatusMessage').textContent = `Progress: ${res.progress || 0}% (${res.processed || 0}/${res.total || 0} tracking numbers fetched)`;
+                    } else if (res.status === 'completed') {
                         clearInterval(opsPollInterval);
-                        updateOpsUI(res);
+                        addLog('Operations report completed successfully!');
+                        updateOpsUI(res.data);
+                        document.getElementById('opsBtn').disabled = false;
+                        switchTab('ops'); // Show results when done
+                    } else if (res.status === 'failed') {
+                        clearInterval(opsPollInterval);
+                        addLog(`Job failed: ${res.error || 'Unknown error'}`, true);
                         document.getElementById('opsBtn').disabled = false;
                     }
                 } catch (err) {
                     clearInterval(opsPollInterval);
                     document.getElementById('opsBtn').disabled = false;
                 }
-            }, 5000);
+            }, 3000);
         }
 
         function updateOpsUI(res) {
