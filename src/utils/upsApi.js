@@ -1,5 +1,5 @@
 const axios = require('axios');
-const pLimit = require('p-limit');
+const pLimit = require('p-limit').default;
 const logger = require('./logger');
 
 /**

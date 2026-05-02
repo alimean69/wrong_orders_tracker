@@ -23,7 +23,6 @@ The system includes a premium web dashboard to manage and monitor your reports v
 The API uses **Bearer Token Authentication**. 
 
 - **Header (Standard)**: `Authorization: Bearer <YOUR_API_AUTH_TOKEN>`
-- **Query Parameter (SSE)**: For Live Logs (Server-Sent Events), use `?token=<YOUR_API_AUTH_TOKEN>`.
 
 *Note: Set your token in the `.env` file under `API_AUTH_TOKEN`.*
 
@@ -52,10 +51,11 @@ The report calculates metrics for a **7-day window** ending on the selected date
 - **Check Status**: `GET /api/reports/:db/daily`
 
 ### 4.2 Operations API
-- **Get Report**: `GET /api/ops?date=YYYY-MM-DD`
-    - Returns the cached report if available, or starts a background job.
-- **Live Stream (SSE)**: `GET /api/ops/stream?date=YYYY-MM-DD&token=...`
-    - Provides real-time logs and progress updates as the system fetches data from UPS.
+- **Check Status/Result**: `GET /api/ops?date=YYYY-MM-DD`
+    - Returns a `202 Processing` status with logs and progress while running.
+    - Returns a `200 OK` with full data and logs once complete.
+- **Run Job**: `POST /api/ops/run`
+    - Explicitly triggers a background generation for the specified date.
 
 ### 4.3 System Configuration
 - **Get Config**: `GET /api/reports/system/config`
@@ -77,7 +77,7 @@ The report calculates metrics for a **7-day window** ending on the selected date
 3.  **Run Reports**:
     - **Wrong Orders**: Click "Run Wrong Orders" to start the AI verification scan.
     - **Operations**: Select a date and click "Run Operations Metrics".
-4.  **Monitor Live**: The system will automatically switch to the **Live Logs** tab. You will see progress like `Progress: 45% (450/1000 tracking numbers fetched)`.
+4.  **Monitor Status**: The dashboard uses background polling to track progress. You can see real-time updates in the **Live Logs** tab, including fetch counts like `Progress: 45% (450/1000 tracking numbers fetched)`.
 5.  **Review Results**: Once finished, results are displayed in the respective data tables and cached in the `reports/` folder.
 
 ---
@@ -87,7 +87,7 @@ The report calculates metrics for a **7-day window** ending on the selected date
 - `/public`: Dashboard frontend (`index.html`).
 - `/reports`: Cached Operations Metrics JSON files.
 - `/src/services`: Business logic (Wrong Orders, UPS Integration, ERP Database).
-- `/src/controllers`: API request handling and event streaming.
+- `/src/controllers`: API request handling and background job coordination.
 - `/src/routes`: API route definitions.
 - `server.js`: Express server entry point.
 - `.env`: Secrets and ERP Database credentials.
