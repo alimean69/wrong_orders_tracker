@@ -41,8 +41,14 @@ function avg(values) {
 const activeJobs = new Map();
 
 async function runOpsLogic(targetDay, progressCallback, logCallback) {
+    const job = activeJobs.get(targetDay);
     const log = (msg) => {
+        const timestampedMsg = `[${new Date().toISOString()}] ${msg}`;
         logger.info(msg);
+        if (job) {
+            if (!job.logs) job.logs = [];
+            job.logs.push(timestampedMsg);
+        }
         jobEvents.emit(`log:${targetDay}`, msg);
         if (logCallback) logCallback(msg);
     };
@@ -109,7 +115,13 @@ async function runOpsLogic(targetDay, progressCallback, logCallback) {
         log(`Fetching UPS tracking data for ${[...new Set(shipmentRows.map(r => r.trackingNumber))].length} unique tracking numbers...`);
         // Fetch UPS tracking data
         const uniqueTrackings = [...new Set(shipmentRows.map(r => r.trackingNumber))];
+        const job = activeJobs.get(targetDay);
         const deliveredByTracking = await fetchAllTrackings(uniqueTrackings, upsToken, (done, total) => {
+            if (job) {
+                job.progress = Math.round((done / total) * 100);
+                job.processed = done;
+                job.total = total;
+            }
             jobEvents.emit(`progress:${targetDay}`, { done, total });
             if (progressCallback) progressCallback(done, total);
         });
@@ -204,10 +216,11 @@ async function getOpsReport(targetDay) {
                 progress: `${job.progress}%`,
                 processed: job.processed,
                 total: job.total,
+                logs: job.logs,
                 message: "The report is currently being generated in the background."
             };
         } else if (job.status === 'completed') {
-            return job.result;
+            return { ...job.result, logs: job.logs };
         } else if (job.status === 'failed') {
             // If it failed, we might want to allow a retry
             activeJobs.delete(targetDay);
@@ -233,7 +246,8 @@ async function getOpsReport(targetDay) {
         processed: 0,
         total: 0,
         targetDay,
-        startTime: new Date()
+        startTime: new Date(),
+        logs: [`Job started at ${new Date().toISOString()}`]
     };
     activeJobs.set(targetDay, job);
 
